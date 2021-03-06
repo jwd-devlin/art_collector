@@ -20,22 +20,21 @@ class DimensionExtractor:
 
     """
 
-
-    DEFAULT_MEASUREMENT_DIRECTIONS = ["Length", "Width", "Height"]
+    DEFAULT_MEASUREMENT_DIRECTIONS = ["art_length", "art_width", "art_height"]
     # Data with multi fields commonly split by:
-    DIMENSION_SPLITS = [";", "\r\n"]
-    MULTI_DIMENSIONS_SPLIT = "x"
+    DIMENSION_SPLITS = [";", "\r\n", ":"]
+    MULTI_DIMENSIONS_SPLIT = ["x", "×"]
 
     POS_ID_HEIGHT_FLAG = "H. "
     POS_ID_LENGTH_FLAG = "L. "
     POS_ID_DIAMETER_FLAG = "Diam"
-    MEASUREMENT_DIRECTIONS_BY_FLAGS = {"H. ": ["Height"], "L. ": ["Length"], "Diam": ["Length", "Width"]}
+    MEASUREMENT_DIRECTIONS_BY_FLAGS = {"H. ": ["art_height"], "L. ": ["art_length"],
+                                       "Diam": ["art_length", "art_width"]}
 
     OVERALL_FLAG = "Overall:"
 
-
-
-    INBRACKETS_MATCH = "\((.* cm)\)"
+    METRIC_UNIT = "cm"
+    INBRACKETS_MATCH = """\((.*cm)"""
 
     def __extract_cm_data(self, dimensions: str) -> list:
 
@@ -49,8 +48,13 @@ class DimensionExtractor:
         if len(set_extracted) > 1:
             logging.warning(" more DIMENSION_SPLITS found for : %s, Only taking the first.", dimensions)
 
-        return set_extracted[0].strip("cm").split(self.MULTI_DIMENSIONS_SPLIT)
+        clean_extracted = re.sub(self.METRIC_UNIT, '', set_extracted[0]).strip()
+        try:
+            re.split("|".join(self.MULTI_DIMENSIONS_SPLIT), clean_extracted)
+        except:
+            print(dimensions)
 
+        return re.split("|".join(self.MULTI_DIMENSIONS_SPLIT), clean_extracted)
 
     def __get_direction_id_flag(self, text: str) -> str:
         for key in self.MEASUREMENT_DIRECTIONS_BY_FLAGS.keys():
@@ -67,22 +71,22 @@ class DimensionExtractor:
     def __get_measurement_directions(self, flag: str, number_dimension_values: int) -> list:
         """
 
-        Returns the possible measurement directions: ["Length", "Width", "Height"]
+        Returns the possible measurement directions: ["art_length", "art_width", "art_height"]
 
         Example 1.:
             flag = ""
             number_dimension_values = 3
-              -> ["Length", "Width", "Height"]
+              -> ["art_length", "art_width", "art_height"]
 
         Example 2:
             flag = ""
             number_dimension_values = 2
-              -> ["Length", "Width"]
+              -> ["art_length", "art_width"]
 
         Example 2:
             flag = "H"
             number_dimension_values = 1
-              -> ["Height"]
+              -> ["art_height"]
         """
         measurement_directions = self.MEASUREMENT_DIRECTIONS_BY_FLAGS.get(flag, self.DEFAULT_MEASUREMENT_DIRECTIONS)
         return measurement_directions[0:number_dimension_values]
@@ -97,11 +101,11 @@ class DimensionExtractor:
         split_dimensions = [97.2, 56.5,52.7]
         measurement_directions = "Diam"
 
-        -> {"Length":97.2, "Width": 56.5, "Height": 52.7}
+        -> {"art_length":97.2, "art_width": 56.5, "art_height": 52.7}
 
         Example 2:
         Existing data, pick largest value
-        out_dimensions = {"Length":20, "Width": 20, "Height": 52.7}
+        out_dimensions = {"art_length":20, "art_width": 20, "art_height": 52.7}
         split_dimensions = [97.2, 56.5, 52.7]
         measurement_direction_flags = ""
 
@@ -119,6 +123,10 @@ class DimensionExtractor:
             out_dimensions[flag] = max([float(split_dimensions[index]), existing_value])
 
     def __extract_values(self, text: str, out_dimensions: dict) -> None:
+
+        if self.METRIC_UNIT not in text:
+            return None
+
         cm_data_split = self.__extract_cm_data(text)
 
         if self.__all_measurement_directions(cm_data_split):
@@ -139,7 +147,13 @@ class DimensionExtractor:
     def extractation(self, raw_dimensions: str) -> dict:
 
         out_dimensions = {}
-        raw_dimensions_split_sets= re.split("|".join(self.DIMENSION_SPLITS), raw_dimensions)
+
+        if not isinstance(raw_dimensions, str):
+            print(raw_dimensions)
+            return out_dimensions
+
+        raw_dimensions_split_sets = re.split("|".join(self.DIMENSION_SPLITS), raw_dimensions)
+
         if self.OVERALL_FLAG in raw_dimensions:
             # Only first set of interest.
             self.__extract_values(raw_dimensions_split_sets[0], out_dimensions)
