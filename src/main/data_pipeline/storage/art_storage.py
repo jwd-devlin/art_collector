@@ -50,3 +50,10 @@ class ArtStorage:
         fill_in_field_names = ", ".join(fields)
         return f"""INSERT INTO {table_name} ( {fill_in_field_names} ) VALUES ( {fill_in_field_spots} ) 
                    ON CONFLICT DO NOTHING"""
+
+    def read_dimensions_by_object_id(self, object_id: int, table_name: str = "art_dimensions"):
+        read_query = f"""SELECT * FROM {table_name} WHERE object_id = %s;"""
+        connection = self.__prepare_reading()
+        return pd.read_sql_query(read_query, params=[
+            object_id
+        ], con=connection)
