@@ -1,0 +1,46 @@
+version: '3.7'
+services:
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      - POSTGRES_USER=arty
+      - POSTGRES_PASSWORD=pwd
+      - POSTGRES_DB=art
+    ports:
+      - "5432:5432"
+  jupyter:
+    build:
+      dockerfile: Dockerfile.dev
+      context: .
+    ports:
+      - "8888:8888"
+      - "4040-4080:4040-4080"
+    volumes:
+      - ./src:/home/jovyan/work/src
+    environment:
+      - PASSWORD=password
+  migrations_setup:
+    image: 'python:slim'
+    tty: true
+    volumes:
+      - ./src:/project
+    working_dir: /project
+    depends_on:
+      - postgres
+      - jupyter
+    command: >
+      sh -c "pip install -r requirements.txt &&
+             yoyo apply --database postgresql://arty:pwd@postgres/art ./migrations"
+  etl_pipeline:
+    image: 'python:slim'
+    tty: true
+    volumes:
+      - ./src:/project
+    working_dir: /project
+    depends_on:
+      - postgres
+      - jupyter
+      - migrations_setup
+    command: >
+      sh -c "pip install -r requirements.txt
+             "

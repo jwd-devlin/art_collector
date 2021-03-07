@@ -1,0 +1,10 @@
+FROM jupyter/minimal-notebook:latest
+
+USER root
+
+COPY src/requirements.txt requirements.txt
+
+RUN set -ex \
+    && pip install -r requirements.txt
+
+ENV PYTHONPATH "${PYTHONPATH}:/home/jovyan/work/"
