@@ -135,12 +135,12 @@ class TestExecute(unittest.TestCase):
         output = self.extractor.extractation(input_0)
         self.assertEqual(expected, output)
 
-    def test(self):
-        input_0 = """Approx. 10.2 x 6.3 cm (4 x 2 1/2 in.)"""
-        expected = {'art_length': 27, 'art_width': 22.5}
+    def test_two_diameter_values(self):
+        input_0 = """string Height: 3 1/8 in. (8 cm)
+                     Diameter: 2 1/16 x 7/8 in. (5.2 x 2.2 cm)"""
+        expected = {"art_length": 5.2, "art_width": 5.2, "art_height": 8}
         output = self.extractor.extractation(input_0)
         self.assertEqual(expected, output)
-
 
 if __name__ == '__main__':
     unittest.main()

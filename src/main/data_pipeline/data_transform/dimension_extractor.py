@@ -9,41 +9,38 @@ class DimensionExtractor:
 
     Units in cm.
 
-    -> [length, width, height]
+    -> ["art_length", "art_width", "art_height"]
 
-       'H. 9 in. (22.9 cm); Diam. 3 7/8 in. (9.8 cm)' -> [9.8, 9.8, 22.9 ]
-       'L. 26 in. (66 cm)' -> [66, None, None]
-       'H. 12 3/4 in. (32.4 cm)' -> [None, None, 32.4]
-       'Diam. 5 3/4 in. (14.6 cm)' -> [14.6, 14.6, None]
-       'Overall: 4 11/16 x 12 1/2 x 7 1/8 in. (11.9 x 31.8 x 18.1 cm); ...' -> [11.9, 31.8, 18.1]
+       Example:
+
+       "Diam. 2 5/8 × 1/4 in., 0.3 lb. (6.7 × 0.6 cm, 0.1 kg)"
+        -> {'art_length': 27, 'art_width': 22.5}
 
 
     """
 
     DEFAULT_MEASUREMENT_DIRECTIONS = ["art_length", "art_width", "art_height"]
+
     # Data with multi fields commonly split by:
-    DIMENSION_SPLITS = [";", "\r\n", "mount:", "frame:", "\n"]
+    DIMENSION_SPLITS = [";", "\r\n", "mount:", "frame:", "\n", "confirmed:", "Forks", "sheet:"]
     MULTI_DIMENSIONS_SPLIT = ["x", "×", "-", ","]
+    OVERALL_FLAG = "overall:"
 
     # Identify direction of measurement
-    MEASUREMENT_DIRECTIONS_BY_FLAGS = {"h.": ["art_height"], "l.": ["art_length"], "h:": ["art_height"],
-                                       "diam": ["art_length", "art_width"], "height:": ["art_height"],
-                                       "th.": ["art_width"], "d.": ["art_length", "art_width"], "w.": ["art_width"],
-                                       " h ": ["art_height"], "d ": ["art_length", "art_width"],
-                                       "width:": ["art_width"], "length:": ["art_width"], "w:": ["art_width"]}
+    MEASUREMENT_DIRECTIONS_BY_FLAGS = {"h.": ["art_height"], "h x": ["art_height"], "h:": ["art_height"],
+                                       "h>": ["art_height"], "height:": ["art_height"], " h ": ["art_height"],
+                                       "l.": ["art_length"], " L ": ["art_length"], "length:": ["art_width"],
+                                       "diam": ["art_length", "art_width"], "d ": ["art_length", "art_width"],
+                                       "d.": ["art_length", "art_width"], "w.": ["art_width"], "th.": ["art_width"],
+                                       "width:": ["art_width"], "w:": ["art_width"],
+                                       }
 
-    RANGED_VALUES = ["to", "-"]
-
-    OVERALL_FLAG = "overall:"
     IMPERIAL_UNITS = ["in.", "inches", "inch"]
-    IMPERIAL_UNIT = "in"
-
-    # CLEAN_METRIC_NUMBERS = ["th.", "l.", "inside diameter", "diameter", "h.", "Diam.", "cm.", "image:"]
     METRIC_UNIT = "cm"
 
     # Regex Match Patterns
     CM_BRACKETS_MATCH = """\((.*cm)"""
-    ONLY_TEXT_BRACKETS = """\([a-z]+\)"""
+    ONLY_TEXT_BRACKETS = """\([a-z|\s]+\)"""
     INBRACKETS_MATCH = """\(.*?\)"""
     WIEGHT_MATCH = """(?<=cm)(.*)(?=g*)"""
     NUMBER_EXTRACT = """\d+\.\d+|\d+"""
@@ -54,7 +51,7 @@ class DimensionExtractor:
     def __get_imperial_text(self, text_brackets: list) -> list:
         imperial_brackets = []
         for text in text_brackets:
-            if re.search(self.search_imperial, text):
+            if self.METRIC_UNIT not in text:
                 imperial_brackets.append(text)
         return imperial_brackets
 
@@ -66,7 +63,21 @@ class DimensionExtractor:
         return "x".join(metric_brackets)
 
     def __find_cm_data_in_or_out_brackets(self, text_brackets: list, dimensions: str) -> str:
+        """Example in brackets:
 
+                dimensions:  '12 1/2 x 7 7/8 in. (31.8 x 20 cm)'
+                    -> '31.8 x 20'
+
+           Example imperial in brackets:
+
+                dimensions: l. 5.8 cm (2-5/16 in.) x w. 4.5 cm (1-3/4 in.) x h. 4 cm (1-9/16)
+                    -> l. 5.8 cm x w. 4.5 cm x H. 4 cm
+
+           Example no brackets:
+
+                dimensions:  "D 10 cm x H 5.5 cm"
+                    -> 'D 10 cm x H 5.5 cm'
+                """
         # No brackets
         if not text_brackets:
             # Remove any additional associated weight data.
@@ -90,19 +101,22 @@ class DimensionExtractor:
         """
         Example in brackets:
 
-         - '12 1/2 x 7 7/8 in. (31.8 x 20 cm)' -> '31.8 x 20' -> [31.8, 20]
+         dimensions:  '12 1/2 x 7 7/8 in. (31.8 x 20 cm)'
+                    -> '31.8 x 20' -> [31.8, 20]
 
         Example imperial in brackets:
 
-        -
+        dimensions: l. 5.8 cm (2-5/16 in.) x w. 4.5 cm (1-3/4 in.) x h. 4 cm (1-9/16)
+                   -> l. 5.8 cm x w. 4.5 cm x H. 4 cm -> [5.8, 4.5, 4]
+        Example no brackets:
 
-
+        dimensions:  "D 10 cm x H 5.5 cm"
+                   -> 'D 10 cm x H 5.5 cm' -> [10, 5.5]
         """
 
         in_brackets_text = re.findall(self.INBRACKETS_MATCH, dimensions)
         cm_extracted = self.__find_cm_data_in_or_out_brackets(in_brackets_text, dimensions)
 
-        # clean_extracted = re.sub("|".join([self.METRIC_UNIT, *self.CLEAN_METRIC_NUMBERS]), '', cm_extracted).strip(".").strip()
 
         cm_extracted = re.split("|".join(self.MULTI_DIMENSIONS_SPLIT), cm_extracted)
 
@@ -114,7 +128,9 @@ class DimensionExtractor:
 
         Get direction flags and order.
 
-        Should only be
+        text: "h: 9 7/8 (25.1 cm) x diam. 8 1/4 in.(21 cm)"
+
+        -> ["h:", "diam."]
 
         """
 
@@ -138,7 +154,11 @@ class DimensionExtractor:
 
         for index, value in enumerate(cm_data_split):
             if measurement_direction_flags:
-                flag = measurement_direction_flags[index]
+
+                # Account for when there are ranged values for the same dimension.
+                if index < len(measurement_direction_flags):
+                    flag = measurement_direction_flags[index]
+
                 directions = self.MEASUREMENT_DIRECTIONS_BY_FLAGS[flag]
             else:
                 # default to direction based on position
@@ -173,7 +193,7 @@ class DimensionExtractor:
     def __remove_text_only_brackets(self, raw_dimensions: str) -> str:
         """
         Example:
-            L. 13 1/2 × Diam. (disk) 1 3/4 in. (34.3 × 4.4 cm)
+          raw_dimensions:  L. 13 1/2 × Diam. (disk) 1 3/4 in. (34.3 × 4.4 cm)
 
             ->
             L. 13 1/2 × Diam.  1 3/4 in. (34.3 × 4.4 cm)
