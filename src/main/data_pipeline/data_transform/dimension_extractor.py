@@ -1,5 +1,4 @@
 import re
-import logging
 
 
 class DimensionExtractor:
@@ -22,8 +21,8 @@ class DimensionExtractor:
     DEFAULT_MEASUREMENT_DIRECTIONS = ["art_length", "art_width", "art_height"]
 
     # Data with multi fields commonly split by:
-    DIMENSION_SPLITS = [";", "\r\n", "mount:", "frame:", "\n", "confirmed:", "Forks", "sheet:"]
-    MULTI_DIMENSIONS_SPLIT = ["x", "×", "-", ","]
+    DIMENSION_SUB_GROUP_FLAGS = [";", "\r\n", "mount:", "frame:", "\n", "confirmed:", "Forks", "sheet:"]
+    MULTI_DIMENSIONS_CONNECTOR_FLAGS = ["x", "×", "-", ","]
     OVERALL_FLAG = "overall:"
 
     # Identify direction of measurement
@@ -41,8 +40,8 @@ class DimensionExtractor:
     # Regex Match Patterns
     CM_BRACKETS_MATCH = """\((.*cm)"""
     ONLY_TEXT_BRACKETS = """\([a-z|\s]+\)"""
-    INBRACKETS_MATCH = """\(.*?\)"""
-    WIEGHT_MATCH = """(?<=cm)(.*)(?=g*)"""
+    IN_BRACKETS_MATCH = """\(.*?\)"""
+    WEIGHT_MATCH = """(?<=cm)(.*)(?=g*)"""
     NUMBER_EXTRACT = """\d+\.\d+|\d+"""
 
     def __init__(self):
@@ -55,12 +54,12 @@ class DimensionExtractor:
                 imperial_brackets.append(text)
         return imperial_brackets
 
-    def __get_metric_text(self, text_brackets: list) -> list:
+    def __get_metric_text(self, text_brackets: list) -> str:
         metric_brackets = []
         for text in text_brackets:
             if self.METRIC_UNIT in text:
                 metric_brackets.append(re.findall(self.CM_BRACKETS_MATCH, text)[0])
-        return "x".join(metric_brackets)
+        return self.MULTI_DIMENSIONS_CONNECTOR_FLAGS[0].join(metric_brackets)
 
     def __find_cm_data_in_or_out_brackets(self, text_brackets: list, dimensions: str) -> str:
         """Example in brackets:
@@ -81,7 +80,7 @@ class DimensionExtractor:
         # No brackets
         if not text_brackets:
             # Remove any additional associated weight data.
-            weight_info = re.findall(self.WIEGHT_MATCH, dimensions)
+            weight_info = re.findall(self.WEIGHT_MATCH, dimensions)
             if weight_info and "g" in dimensions:
                 return re.sub(weight_info[0], '', dimensions)
             return dimensions
@@ -94,7 +93,7 @@ class DimensionExtractor:
         # if imperial units in brackets.
         imperial_brackets = self.__get_imperial_text(text_brackets)
         if imperial_brackets:
-            return re.sub("|".join(imperial_brackets), '', dimensions).replace("()", "").strip()
+            return re.sub("|".join(imperial_brackets), '', dimensions).replace(re.escape("()"), "").strip()
 
     def __extract_cm_data(self, dimensions: str) -> list:
 
@@ -114,11 +113,10 @@ class DimensionExtractor:
                    -> 'D 10 cm x H 5.5 cm' -> [10, 5.5]
         """
 
-        in_brackets_text = re.findall(self.INBRACKETS_MATCH, dimensions)
+        in_brackets_text = re.findall(self.IN_BRACKETS_MATCH, dimensions)
         cm_extracted = self.__find_cm_data_in_or_out_brackets(in_brackets_text, dimensions)
 
-
-        cm_extracted = re.split("|".join(self.MULTI_DIMENSIONS_SPLIT), cm_extracted)
+        cm_extracted = re.split("|".join(self.MULTI_DIMENSIONS_CONNECTOR_FLAGS), cm_extracted)
 
         clean_extracted = [re.findall(self.NUMBER_EXTRACT, item) for item in cm_extracted]
         return [item[0] for item in clean_extracted if item]
@@ -180,12 +178,11 @@ class DimensionExtractor:
 
         if self.__all_measurement_directions(cm_data_split):
             self.__map_cm_data_to_direction_flags([], cm_data_split, out_dimensions)
-            return
+            return None
 
         # Check for mention of any possible measurement directions
         measurement_direction_flags = self.__get_direction_id_flags(text)
 
-        # Ranged values
 
         # update the out_dimensions
         self.__map_cm_data_to_direction_flags(measurement_direction_flags, cm_data_split, out_dimensions)
@@ -201,7 +198,7 @@ class DimensionExtractor:
 
         text_in_brackets = re.findall(self.ONLY_TEXT_BRACKETS, raw_dimensions)
         if text_in_brackets:
-            return re.sub("|".join(text_in_brackets), '', raw_dimensions).replace("()", "")
+            return re.sub("|".join(text_in_brackets), '', raw_dimensions).replace(re.escape("()"), "")
 
         return raw_dimensions
 
@@ -217,13 +214,15 @@ class DimensionExtractor:
         # Remove any text only brackets.
         raw_dimensions_without_text_brackets = self.__remove_text_only_brackets(raw_dimensions)
 
-        raw_dimensions_split_sets = re.split("|".join(self.DIMENSION_SPLITS), raw_dimensions_without_text_brackets)
+        raw_dimensions_sub_groups = re.split("|".join(self.DIMENSION_SUB_GROUP_FLAGS),
+                                             raw_dimensions_without_text_brackets)
 
+        # Special Case only interested in "overall" dimensions.
         if self.OVERALL_FLAG in raw_dimensions:
             # Only first set of interest.
-            self.__extract_values(raw_dimensions_split_sets[0], out_dimensions)
+            self.__extract_values(raw_dimensions_sub_groups[0], out_dimensions)
             return out_dimensions
-        for raw_dimension in raw_dimensions_split_sets:
+        for raw_dimension in raw_dimensions_sub_groups:
             self.__extract_values(raw_dimension, out_dimensions)
 
         return out_dimensions
