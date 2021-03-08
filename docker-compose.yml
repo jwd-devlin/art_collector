@@ -21,7 +21,6 @@ services:
       - PASSWORD=password
   migrations_setup:
     image: 'python:slim'
-    tty: true
     volumes:
       - ./src:/project
     working_dir: /project
@@ -31,16 +30,3 @@ services:
     command: >
       sh -c "pip install -r requirements.txt &&
              yoyo apply --database postgresql://arty:pwd@postgres/art ./migrations"
-  etl_pipeline:
-    image: 'python:slim'
-    tty: true
-    volumes:
-      - ./src:/project
-    working_dir: /project
-    depends_on:
-      - postgres
-      - jupyter
-      - migrations_setup
-    command: >
-      sh -c "pip install -r requirements.txt
-             "
