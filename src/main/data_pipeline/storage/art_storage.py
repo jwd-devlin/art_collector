@@ -57,3 +57,18 @@ class ArtStorage:
         return pd.read_sql_query(read_query, params=[
             object_id
         ], con=connection)
+
+    def check_fit_by_object_id_and_dimensions(self, object_id: int, dimensions: list,
+                                              table_name: str = "art_dimensions") -> bool:
+        query = f"""SELECT exists(
+                                SELECT * FROM 
+                                        (SELECT * FROM {table_name} WHERE object_id = %s) AS art_target
+                                        WHERE art_target.art_length <= %s 
+                                        AND art_target.art_width <= %s 
+                                        AND art_target.art_height <= %s );"""
+
+        connection = self.__prepare_reading()
+        with connection.cursor() as cursor:
+            cursor.execute(query, tuple([object_id, *dimensions]))
+            out = cursor.fetchone()
+        return out[0]
