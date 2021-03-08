@@ -41,14 +41,14 @@ class MetArtTransform:
 
         for index, row in art_data.iterrows():
             if self.__check_known_no_dimensions(row[self.DIMENSIONS_RAW_DATA_FIELD]):
-                logging.info("%s has been flagged as no dimensions found.", row[self.ART_ID])
+                logging.info("%s has been flagged as no dimensions text.", row[self.ART_ID])
                 continue
 
             try:
                 extracted_dimensions = self.__extract_data(row[self.DIMENSIONS_RAW_DATA_FIELD])
+                art_data.loc[index, self.DIMENSION_OUTPUT_FIELDS] = extracted_dimensions
             except:
-                logging.warning("Skipping % has dimension string %s", row[self.ART_ID],
+                logging.warning("Error: Skipping %s has dimension string %s", row[self.ART_ID],
                                 row[self.DIMENSIONS_RAW_DATA_FIELD])
-                extracted_dimensions = [0, 0, 0]
-            art_data.loc[index, self.DIMENSION_OUTPUT_FIELDS] = extracted_dimensions
+
         return art_data[[self.ART_ID, self.DIMENSIONS_RAW_DATA_FIELD, *self.DIMENSION_OUTPUT_FIELDS]]
