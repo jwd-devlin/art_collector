@@ -37,19 +37,30 @@ the data and place in "src/resources/MetObjects.txt".
 
 - Start-Up:
   - Use the docker-compose.yml to start up the containers ( Postgres, Jupyter notebook).
-    - Included is the setup of the database with the migration contatiner.
+    - Included is the setup of the database with the migration container.
 
     ```docker compose up --build```
 
 - Setup DataPipeline Run:
   - dimension extraction logic can be found in "src/main/data_pipeline/data_transform/dimension_extractor.py"
   - Run the ETL Pipeline using the /src/Project_ETL.ipynb.
+
+- Application Run:
+  - Run the /src/Find_me_art.ipynb
+  - See notebook for examples of finding art for your home.
+  - Assumption that the user will always provide a dictionary of volume information, so three measurements one for the
+    (length, width, height).
+    - "Wild assumption" that the users pick the same orientation as the measurements were intended.
+
+## Additional Notes:
+
+- Pipeline Improvements:
   - *Ways to improve.
-    - Move initial raw data to S3 or other cloud storage.
-    - Move this to data pipeline workflow management helper: Airflow.
-    - parallelise the ETL.
-    - Move cleaning to spark for speed up.
-    - clean up: move sql to a separate file.
+  - Move initial raw data to S3 or other cloud storage.
+  - Move this to data pipeline workflow management helper: Airflow.
+  - parallelise the ETL.
+  - Move cleaning to spark for speed up.
+  - clean up: move sql to a separate file.
 
 - Cleaned data Storage Format: Postgres
   - Due to the nature of the measurement data, having an innate structure and being relatively "simple" homogeneous. It
@@ -60,9 +71,3 @@ the data and place in "src/resources/MetObjects.txt".
   - Flexible solution for more/new logic.
   - Free.
 
-- Application Run:
-  - Run the /src/Find_me_art.ipynb
-  - See notebook for examples of finding art for your home.
-  - Assumption that the user will always provide a dictionary of volume information, so three measurements one for the
-    (length, width, height).
-    - "Wild assumption" that the users pick the same orientation as the measurements were intended.
