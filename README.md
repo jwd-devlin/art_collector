@@ -20,7 +20,7 @@ the data and place in "src/resources/MetObjects.txt".
     - Or without just maintaining a separation with "x", ";" or ","
     - Diameter measurements equate to Length x Width measurements.
   - Measurement Units.
-    - Metric values and Imperial values appear in brackets () separately.
+    - Metric values and Imperial values appear in brackets () separately most of the time.
     - Metric units may also appear alone.
     - Measurements without units will be considered lost.
   - Incorrect values (Aim for the majority of data that follows consistent rules).
@@ -42,8 +42,8 @@ the data and place in "src/resources/MetObjects.txt".
     ```docker compose up --build```
 
 - Setup DataPipeline Run:
-  - dimension extraction logic can be found in "src/main/data_pipeline/data_transform/dimension_extractor.py"
-  - Run the ETL Pipeline using the /src/Project_ETL.ipynb.
+  - Run the ETL Pipeline to transfer the data to the Postgres by using the /src/Project_ETL.ipynb.
+    - dimension extraction logic can be found in "src/main/data_pipeline/data_transform/dimension_extractor.py"
 
 - Application Run:
   - Run the /src/Find_me_art.ipynb
@@ -55,7 +55,7 @@ the data and place in "src/resources/MetObjects.txt".
 ## Additional Notes:
 
 - Pipeline Improvements:
-  - *Ways to improve.
+  - Extract the database migration from the docker compose
   - Move initial raw data to S3 or other cloud storage.
   - Move this to data pipeline workflow management helper: Airflow.
   - parallelise the ETL.
@@ -66,8 +66,9 @@ the data and place in "src/resources/MetObjects.txt".
   - Due to the nature of the measurement data, having an innate structure and being relatively "simple" homogeneous. It
     made sense to have a storage solution that would also suit a relational store. Additional the for the current
     application the query for retrieving the data was a key-value query.
-  - I kept the business logic for the "does_it_fit" from being intertwined with the storage solution. To allow for
-    potential switching of storage options, and "aid" in speed of return.
-  - Flexible solution for more/new logic.
-  - Free.
+  - I mostly* kept the business logic for the "does_it_fit" from being intertwined with the storage solution. To allow
+    for potential switching of storage options, and "aid" in speed of return. * Went back and added it in to see the
+    speed difference.
+  - Flexible solution for more/new logic or Technology access.
+  - Free and widely used.
 
